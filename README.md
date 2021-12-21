@@ -1,158 +1,105 @@
-# 🚀 WordPress Docker Dev Environment
+# WordPress Template Project
 
-> 🧱 A customizable, developer-friendly WordPress development template powered by Docker, built entirely from minimal Debian-based images.
+A modern, containerized WordPress development environment built with custom conventions and latest standards. This project serves as a foundation for creating custom WordPress themes and plugins without relying on outdated or overpriced third-party solutions.
 
----
+## 🚀 Features
 
-![Docker](https://img.shields.io/badge/Docker-Engine-blue?logo=docker)
-![WordPress](https://img.shields.io/badge/WordPress-6.x-blue?logo=wordpress)
-![PHP](https://img.shields.io/badge/PHP-8.x-blue?logo=php)
-![MariaDB](https://img.shields.io/badge/MariaDB/MySQL-Supported-blue?logo=mysql)
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+- **Custom Docker Environment**: Tailored containers with full control over the development stack
+- **Modern PHP Standards**: Leveraging the latest PHP features and best practices
+- **Version Control Ready**: Comprehensive Git setup with proper ignore patterns
+- **Environment Configuration**: Secure environment variable management
+- **Database Persistence**: Local database storage for consistent development
+- **Comprehensive Documentation**: Well-structured project documentation
 
----
-
-## ✨ Features
-
-- 🐳 **Dockerized** environment (from scratch)
-- ⚙️ Built on **Debian Bookworm**
-- 🗂️ Isolated custom images for:
-  - WordPress + WP-CLI
-  - MySQL or MariaDB
-  - phpMyAdmin
-  - MailHog for email testing
-- 💾 Database persistence to host
-- 🔄 `.env`-based configuration
-- 🧪 5-minute WordPress setup with `wp-cli`
-- 📬 Instant mail debugging with MailHog UI
-- 🔌 Easily extendable with new tools
-
----
-
-## 🧠 Project Structure
+## 📁 Project Structure
 
 ```
-📁 your-project/
-├── .env              # Your actual environment variables
-├── .env.example      # Template environment file
-├── docker-compose.yml
-├── web/              # WordPress root directory
-├── dbs/              # Host-mirrored DB data
-└── img/              # All custom images
-    ├── wordpress/
-    │   ├── Dockerfile
-    │   └── entrypoint.sh
-    ├── mysql/
-    │   ├── Dockerfile
-    │   └── entrypoint.sh
-    ├── mariadb/
-    │   ├── Dockerfile
-    │   └── entrypoint.sh
-    └── mailhog/
-        ├── Dockerfile
-        └── entrypoint.sh
+wordpress-template/
+├── database/                 # Persistent database storage
+├── wordpress-site/          # WordPress installation directory
+├── docs/                    # Project documentation
+├── docker/                  # Docker configuration files
+├── .env.example             # Environment variables template
+├── .env                     # Local environment variables (ignored by git)
+├── .gitignore               # Git ignore patterns
+├── .dockerignore            # Docker ignore patterns
+├── docker-compose.yml       # Development environment orchestration
+├── Dockerfile               # Custom Docker image definition
+├── entrypoint.sh            # Container setup script
+├── README.md                # This file
+└── LICENSE                  # Project license
 ```
 
----
+## 🛠️ Prerequisites
 
-## ⚙️ Requirements
+- Docker Engine 20.10+
+- Docker Compose 2.0+
+- Git 2.30+
+- Basic knowledge of WordPress development
 
-- Docker 🐳
-- Docker Compose
-- Optional: [Make](https://www.gnu.org/software/make/) for command shortcuts
+## ⚡ Quick Start
 
----
+1. **Clone the repository**
 
-## 🚀 Getting Started
-
-1. **Clone the repo**  
    ```bash
-   git clone https://github.com/your-username/your-project.git
-   cd your-project
+   git clone <repository-url>
+   cd wordpress-template
    ```
 
-2. **Copy the environment file**
+2. **Setup environment variables**
+
    ```bash
    cp .env.example .env
+   # Edit .env with your configuration
    ```
 
-3. **Set DB_ENGINE** in `.env`  
-   Options: `mysql` or `mariadb`
+3. **Build and start the development environment**
 
-4. **Start the environment**
    ```bash
-   docker compose up --build
+   docker-compose up --build
    ```
 
-5. **Visit in your browser**:
-   - 🌐 WordPress: [http://localhost:8000](http://localhost:8000)
-   - 🧠 phpMyAdmin: [http://localhost:8080](http://localhost:8080)
-   - 📬 MailHog: [http://localhost:8025](http://localhost:8025)
+4. **Access your WordPress site**
+   - Frontend: http://localhost:8080
+   - Admin: http://localhost:8080/wp-admin
 
----
+## 📚 Documentation
 
-## 🔧 WP-CLI Examples
+Detailed documentation is available in the `/docs` folder:
 
-Run WP CLI commands directly inside the WordPress container:
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture and design decisions
+- [SETUP.md](docs/SETUP.md) - Detailed setup and configuration guide
+- [SECURITY.md](docs/SECURITY.md) - Security best practices and configurations
+- [DEVELOPMENT.md](docs/DEVELOPMENT.md) - Development workflow and conventions
+- [DEPLOYMENT.md](docs/DEPLOYMENT.md) - Deployment strategies and guidelines
 
-```bash
-docker compose exec web wp core version --allow-root
-docker compose exec web wp plugin list --allow-root
-docker compose exec web wp user list --allow-root
-```
+## 🔧 Development Workflow
 
----
+This project follows modern development practices with:
 
-## 📬 Email with MailHog
+- Custom coding conventions for consistency
+- Docker-first development approach
+- Environment-based configuration
+- Comprehensive version control
+- Security-focused setup
 
-MailHog captures any emails sent by WordPress.  
-Use plugin like **WP Mail SMTP** or configure `wp-config.php` to point to:
+## 🤝 Contributing
 
-- **SMTP Host**: `mailhog`
-- **SMTP Port**: `1025`
-- **No authentication or encryption needed**
-
----
-
-## 🧩 Switching between MySQL and MariaDB
-
-In `.env`:
-
-```env
-DB_ENGINE=mysql   # or mariadb
-```
-
-Then rebuild:
-
-```bash
-docker compose down
-docker compose build dbs
-docker compose up
-```
-
----
-
-## 🛠️ Extending
-
-You can easily add:
-- SSL support (mkcert or certbot)
-- Redis for caching
-- Nginx as a reverse proxy
-- Xdebug for debugging
-- Custom php.ini settings
-
----
+This is a personal template project, but contributions and suggestions are welcome. Please ensure all code follows the established conventions and includes appropriate documentation.
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the terms specified in the LICENSE file.
+
+## 🎯 Philosophy
+
+Built by a developer who believes in:
+
+- Taking control over third-party dependencies
+- Using modern standards and best practices
+- Creating maintainable and well-documented code
+- Not settling for "good enough" when "excellent" is achievable
 
 ---
 
-## 🙌 Credits
-
-- [WordPress](https://wordpress.org/)
-- [WP-CLI](https://wp-cli.org/)
-- [MailHog](https://github.com/mailhog/MailHog)
-- [phpMyAdmin](https://www.phpmyadmin.net/)
-- [Docker](https://www.docker.com/)
+**Note**: This is an active development project. Features and documentation will be continuously improved and expanded.
