@@ -1,0 +1,67 @@
+#########################################
+# 🔐 Environment & Config Files
+#########################################
+.env
+.env.local
+.env.*.backup
+
+
+#########################################
+# 🛢️ Local Database Files
+#########################################
+dbs/
+
+
+#########################################
+# 🌐 WordPress Core & Runtime
+#########################################
+web/wp-admin/
+web/wp-includes/
+web/index.php
+web/xmlrpc.php
+web/license.txt
+web/readme.html
+web/wp-*.php
+web/.htaccess
+web/wp-config.php           # If managed manually, remove this line
+
+# Optional: exclude wp-content if managed separately
+# web/wp-content/
+# Otherwise, ignore only non-dev stuff:
+
+# 🧩 Themes & Plugins from inside WordPress (not under version control)
+web/wp-content/plugins/*
+!web/wp-content/plugins/.gitkeep
+
+web/wp-content/themes/*
+!web/wp-content/themes/.gitkeep
+
+# 📁 Media Uploads
+web/wp-content/uploads/
+
+# 🗃️ Cache, debug logs, etc.
+web/wp-content/cache/
+web/wp-content/backups/
+web/wp-content/upgrade/
+web/debug.log
+
+
+#########################################
+# 📦 Composer / Node (if used)
+#########################################
+vendor/
+node_modules/
+
+
+#########################################
+# 💻 System & Editor Files
+#########################################
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+*.log
+*.tmp
