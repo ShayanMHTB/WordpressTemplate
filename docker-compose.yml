@@ -1,63 +1,51 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# WordPress Template - Docker Compose
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━^
+
 services:
-  # MySQL or MariaDB
-  dbs:
+  mysql:
     build:
-      context: ./img/${DB_ENGINE}
+      context: .
+      dockerfile: images/mysql/Dockerfile
       args:
-        - DEBIAN_VERSION=${DEBIAN_VERSION}
-    container_name: ${DB_CONTAINER_NAME}
-    env_file: .env
-    ports:
-      - "${DB_PORT}:3306"
+        MYSQL_VERSION: ${MYSQL_VERSION}
+    container_name: ${PROJECT_NAME}_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - ./dbs:/var/lib/mysql
-    networks:
-      - wpnet
-
-  # PHPMyAdmin
-  pma:
-    build:
-      context: ./img/phpmyadmin
-      args:
-        - DEBIAN_VERSION=${DEBIAN_VERSION}
-    container_name: ${PMA_CONTAINER_NAME}
-    env_file: .env
-    depends_on:
-      - dbs
+      - ./database:/var/lib/mysql
     ports:
-      - "${PMA_PORT}:8080"
+      - '3306:3306'
     networks:
-      - wpnet
+      - wordpress_net
 
-  # WordPress
-  web:
+  wordpress:
     build:
-      context: ./img/wordpress
+      context: .
+      dockerfile: images/wordpress/Dockerfile
       args:
-        - DEBIAN_VERSION=${DEBIAN_VERSION}
-    container_name: ${WEB_CONTAINER_NAME}
+        WORDPRESS_VERSION: ${WORDPRESS_VERSION}
+    container_name: ${PROJECT_NAME}_wordpress
+    restart: unless-stopped
     depends_on:
-      - dbs
-    env_file: .env
+      - mysql
+    environment:
+      WORDPRESS_VERSION: ${WORDPRESS_VERSION}
+      WORDPRESS_DB_HOST: mysql
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - ./web:/var/www/html
+      - ./wordpress:/var/www/html
     ports:
-      - "${WP_PORT}:80"
+      - '9000:9000'
     networks:
-      - wpnet
-
-  eml:
-    build:
-      context: ./img/mailhog
-      args:
-        - DEBIAN_VERSION=${DEBIAN_VERSION}
-    container_name: ${MAILHOG_CONTAINER_NAME}
-    ports:
-      - "${MAILHOG_UI_PORT}:8025"
-      - "${MAILHOG_SMTP_PORT}:1025"
-    networks:
-      - wpnet
-
+      - wordpress_net
 
 networks:
-  wpnet:
+  wordpress_net:
+    driver: bridge
