@@ -1,29 +1,11 @@
-# 👤 Ignore Git metadata
+# ========================================
+# 🚫 Files ignored by Docker build context
+# ========================================
+
+.env
 .git
 .gitignore
-
-# 🔐 Environment files
-.env
-.env.*
-
-# 📄 Docs / Licenses
 README.md
 LICENSE
-
-# 🛢️ Local DB mirror
-dbs/
-
-# 🌐 WordPress content (mounted via volume, not needed at build)
-web/
-
-# 🧪 Node/Composer (if used)
-node_modules/
-vendor/
-
-# 🧼 Misc files
-.DS_Store
-Thumbs.db
-*.log
-*.bak
-*.swp
-*.tmp
+docker-compose.yml
+redistribute_commits.sh
