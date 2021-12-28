@@ -1,51 +1,81 @@
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# WordPress Template - Docker Compose
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━^
-
+# ✨ Local WordPress dev stack — clean, .env-driven, and fully persistent.
 services:
   mysql:
     build:
-      context: .
-      dockerfile: images/mysql/Dockerfile
-      args:
-        MYSQL_VERSION: ${MYSQL_VERSION}
-    container_name: ${PROJECT_NAME}_mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - ./database:/var/lib/mysql
+      context: ./images/mysql
+    container_name: wp_mysql
+    env_file: .env # ⇦ keep secrets out of this file
     ports:
-      - '3306:3306'
-    networks:
-      - wordpress_net
+      - '${DB_PORT:-3306}:3306' # ⇦ expose locally if you want tools to connect
+    volumes:
+      - ./dbs:/var/lib/mysql # ⇦ persistent DB data on host
+    healthcheck:
+      # ✅ Healthy when server responds to ping
+      test:
+        [
+          'CMD',
+          'mysqladmin',
+          'ping',
+          '-h',
+          '127.0.0.1',
+          '-u',
+          'root',
+          '--password=$DB_ROOT_PASSWORD',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
 
   wordpress:
     build:
-      context: .
-      dockerfile: images/wordpress/Dockerfile
-      args:
-        WORDPRESS_VERSION: ${WORDPRESS_VERSION}
-    container_name: ${PROJECT_NAME}_wordpress
-    restart: unless-stopped
+      context: ./images/wordpress
+    container_name: wp_app
+    env_file: .env
     depends_on:
-      - mysql
-    environment:
-      WORDPRESS_VERSION: ${WORDPRESS_VERSION}
-      WORDPRESS_DB_HOST: mysql
-      WORDPRESS_DB_NAME: ${DB_NAME}
-      WORDPRESS_DB_USER: ${DB_USER}
-      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - ./wordpress:/var/www/html
+      mysql:
+        condition: service_healthy # ⇦ wait for DB to be ready
     ports:
-      - '9000:9000'
-    networks:
-      - wordpress_net
+      - '${WP_PORT:-8000}:8000' # ⇦ Apache inside WordPress on 8000
+    volumes:
+      - ./web:/var/www/html # ⇦ persistent WP files on host
+    environment:
+      # These get passed to entrypoint for first-run setup
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      WP_URL: ${WP_URL}
+      WP_TITLE: ${WP_TITLE}
+      WP_ADMIN_USER: ${WP_ADMIN_USER}
+      WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD}
+      WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL}
+      WP_TABLE_PREFIX: ${WP_TABLE_PREFIX}
+      WP_DEBUG: ${WP_DEBUG}
+      TZ: ${TZ}
+    healthcheck:
+      # ✅ Healthy when homepage is reachable
+      test:
+        ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8000/ >/dev/null || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
 
-networks:
-  wordpress_net:
-    driver: bridge
+  phpmyadmin:
+    image: phpmyadmin:latest # 🔎 For quick DB inspection; dev-only convenience
+    container_name: wp_pma
+    env_file: .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - '8081:80' # ⇦ visit http://localhost:8081
+    environment:
+      PMA_HOST: ${DB_HOST}
+      PMA_PORT: ${DB_PORT}
+      UPLOAD_LIMIT: 256M
+    restart: unless-stopped
+# 🗂 Shared network (default) is fine for local dev.
+# 🗃 Volumes are bind-mounted to keep files editable and persistent.
