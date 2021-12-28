@@ -1,54 +1,46 @@
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# WordPress Custom Image - Alpine Base
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┃  WordPress on Debian with Apache + PHP 8.3 + wp-cli         ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+FROM debian:bookworm
 
-ARG WORDPRESS_VERSION=latest
+ENV DEBIAN_FRONTEND=noninteractive
 
-FROM alpine:3.19
+# ⚙️ Add Sury repo for PHP 8.3 (Debian stable ships 8.2)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl gnupg lsb-release tzdata \
+ && curl -fsSL https://packages.sury.org/php/README.txt >/dev/null \
+ && curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/sury-php.gpg \
+ && echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/sury-php.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+    apache2 php8.3 libapache2-mod-php8.3 \
+    php8.3-mysql php8.3-xml php8.3-gd php8.3-mbstring php8.3-zip php8.3-curl php8.3-intl php8.3-opcache \
+    php8.3-imagick unzip less nano tini \
+ && rm -rf /var/lib/apt/lists/*
 
-# Install PHP and necessary packages
-RUN apk add --no-cache \
-    bash \
-    curl \
-    php82 \
-    php82-fpm \
-    php82-mysqli \
-    php82-pdo_mysql \
-    php82-gd \
-    php82-curl \
-    php82-zip \
-    php82-xml \
-    php82-mbstring \
-    php82-json \
-    php82-opcache \
-    php82-session \
-    php82-fileinfo \
-    php82-tokenizer \
-    mysql-client \
-    && ln -sf /usr/bin/php82 /usr/bin/php
+# 🕒 Timezone inside container (overridable via .env TZ)
+ENV TZ=UTC
 
-# Install WP-CLI
-RUN curl -O https://raw.githubusercontent.com/wp-cli/wp-cli/v2.9.0/wp-cli.phar \
-    && chmod +x wp-cli.phar \
-    && mv wp-cli.phar /usr/local/bin/wp
+# 🛠 Apache listen on 8000 (not 80) to avoid conflicts
+RUN sed -i 's/80/8000/g' /etc/apache2/ports.conf \
+ && sed -i 's/:80>/:8000>/g' /etc/apache2/sites-available/000-default.conf
 
-# Create WordPress user and directory
-RUN addgroup -g 1000 wordpress \
-    && adduser -D -s /bin/bash -G wordpress -u 1000 wordpress \
-    && mkdir -p /var/www/html \
-    && chown -R wordpress:wordpress /var/www/html
+# 📦 Install wp-cli
+RUN curl -fsSL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -o /usr/local/bin/wp \
+ && chmod +x /usr/local/bin/wp
 
-# Copy entrypoint
-COPY images/wordpress/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Set working directory
+# 🏠 Document root
 WORKDIR /var/www/html
 
-# Switch to wordpress user
-USER wordpress
+# 🏁 Custom entrypoint for first-run WP setup
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-EXPOSE 9000
+EXPOSE 8000
 
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["php-fpm82", "--nodaemonize"]
+# Enable useful Apache modules
+RUN a2enmod rewrite expires headers
+
+# 🔐 Keep Apache in foreground; entrypoint will prep WordPress then launch
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
+CMD ["apachectl", "-D", "FOREGROUND"]
