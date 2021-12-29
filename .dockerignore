@@ -1,11 +1,237 @@
 # ========================================
-# 🚫 Files ignored by Docker build context
+# WordPress Template Project .dockerignore
 # ========================================
+# Optimize Docker build context by excluding unnecessary files
+# Improves build speed and reduces image size
 
-.env
-.git
+# ========================================
+# VERSION CONTROL & PROJECT METADATA
+# ========================================
+# Git repository and related files
+.git/
 .gitignore
-README.md
-LICENSE
-docker-compose.yml
-redistribute_commits.sh
+.gitattributes
+.gitmodules
+*.md
+README*
+CHANGELOG*
+LICENSE*
+CONTRIBUTING*
+.github/
+
+# ========================================
+# DOCUMENTATION & GUIDES
+# ========================================
+# Project documentation (not needed in container)
+docs/
+documentation/
+*.md
+*.txt
+*.pdf
+screenshots/
+examples/
+
+# ========================================
+# DEVELOPMENT ENVIRONMENT
+# ========================================
+# IDE and editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-*
+.brackets.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+Icon?
+
+# ========================================
+# DOCKER & CONTAINER FILES
+# ========================================
+# Prevent docker inception and build artifacts
+Dockerfile*
+docker-compose*.yml
+.docker/
+.dockerignore
+*.dockerfile
+
+# Container data and logs
+mysql/
+dbs/
+logs/
+*.log
+*.pid
+*.sock
+
+# ========================================
+# ENVIRONMENT & SECRETS
+# ========================================
+# Environment files (handled at runtime)
+.env*
+!.env.example
+*.key
+*.pem
+*.p12
+.secrets/
+config/secrets/
+
+# ========================================
+# DEVELOPMENT DEPENDENCIES
+# ========================================
+# Node.js ecosystem
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.yarn/
+package-lock.json
+yarn.lock
+.pnpm-store/
+
+# PHP Composer
+vendor/
+composer.lock
+composer.phar
+
+# ========================================
+# BUILD ARTIFACTS & TEMPORARY FILES
+# ========================================
+# Compiled and generated files
+dist/
+build/
+*.min.js
+*.min.css
+*.map
+*.tgz
+*.tar.gz
+
+# Temporary and cache files
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+.cache/
+*.pid
+*.seed
+*.coverage
+
+# ========================================
+# TESTING & QUALITY TOOLS
+# ========================================
+# Testing frameworks and outputs
+tests/
+test/
+.phpunit.result.cache
+phpunit.xml
+coverage/
+.nyc_output/
+*.lcov
+.pytest_cache/
+__pycache__/
+*.py[cod]
+
+# Code quality and linting
+.php_cs.cache
+.phpcs.xml
+.phpcbf.xml
+.eslintcache
+.stylelintcache
+.eslintrc*
+.prettierrc*
+.editorconfig
+
+# ========================================
+# RUNTIME DATA (EXCLUDED FROM BUILD)
+# ========================================
+# WordPress uploads and user content
+wordpress/wp-content/uploads/
+wordpress/wp-content/cache/
+wordpress/wp-content/backup*/
+wordpress/wp-content/upgrade/
+wordpress/wp-content/debug.log
+
+# Database files
+*.sql
+*.sql.gz
+*.db
+*.sqlite
+*.sqlite3
+
+# ========================================
+# SECURITY & BACKUP FILES
+# ========================================
+# Backup and archive files
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+*~
+
+# Security related files
+.security/
+security-report.txt
+
+# ========================================
+# DEVELOPMENT WORKFLOW
+# ========================================
+# CI/CD configurations (if not needed in container)
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+Jenkinsfile
+.drone.yml
+
+# Deployment scripts (context-dependent)
+deploy/
+scripts/deploy*
+*.deploy.sh
+
+# ========================================
+# PERFORMANCE & MONITORING
+# ========================================
+# Performance profiling
+.trace
+.prof
+newrelic.ini
+
+# Monitoring configurations
+.monitoring/
+grafana/
+prometheus/
+
+# ========================================
+# MISCELLANEOUS
+# ========================================
+# Archive files
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Image optimization originals
+*.psd
+*.ai
+*.sketch
+*.fig
+
+# Large media files (context-dependent)
+*.mov
+*.mp4
+*.avi
+*.mkv
