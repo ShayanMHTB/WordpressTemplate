@@ -1,81 +1,145 @@
-# ✨ Local WordPress dev stack — clean, .env-driven, and fully persistent.
+# ========================================
+# WordPress Template Docker Compose Configuration
+# ========================================
+# Orchestrates MySQL and WordPress services for development environment
+# Run with: docker compose up
+
+# ========================================
+# SERVICES DEFINITION
+# ========================================
 services:
+  # ========================================
+  # MySQL Database Service
+  # ========================================
   mysql:
     build:
       context: ./images/mysql
-    container_name: wp_mysql
-    env_file: .env # ⇦ keep secrets out of this file
-    ports:
-      - '${DB_PORT:-3306}:3306' # ⇦ expose locally if you want tools to connect
+      dockerfile: Dockerfile
+    container_name: wordpress_mysql
+    restart: unless-stopped
+
+    # Environment variables for MySQL initialization
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    # Persistent volume for database data
     volumes:
-      - ./dbs:/var/lib/mysql # ⇦ persistent DB data on host
+      - ./mysql:/var/lib/mysql
+      - mysql_logs:/var/log/mysql
+
+    # Network configuration
+    networks:
+      - wordpress_network
+
+    # Port mapping (optional - for external database access)
+    ports:
+      - '${MYSQL_PORT:-3306}:3306'
+
+    # Health check to ensure database is ready
     healthcheck:
-      # ✅ Healthy when server responds to ping
       test:
         [
           'CMD',
           'mysqladmin',
           'ping',
           '-h',
-          '127.0.0.1',
+          'localhost',
           '-u',
           'root',
-          '--password=$DB_ROOT_PASSWORD',
+          '-p${MYSQL_ROOT_PASSWORD}',
         ]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+      interval: 30s
 
+  # ========================================
+  # WordPress Application Service
+  # ========================================
   wordpress:
     build:
       context: ./images/wordpress
-    container_name: wp_app
-    env_file: .env
-    depends_on:
-      mysql:
-        condition: service_healthy # ⇦ wait for DB to be ready
-    ports:
-      - '${WP_PORT:-8000}:8000' # ⇦ Apache inside WordPress on 8000
-    volumes:
-      - ./web:/var/www/html # ⇦ persistent WP files on host
-    environment:
-      # These get passed to entrypoint for first-run setup
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      WP_URL: ${WP_URL}
-      WP_TITLE: ${WP_TITLE}
-      WP_ADMIN_USER: ${WP_ADMIN_USER}
-      WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD}
-      WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL}
-      WP_TABLE_PREFIX: ${WP_TABLE_PREFIX}
-      WP_DEBUG: ${WP_DEBUG}
-      TZ: ${TZ}
-    healthcheck:
-      # ✅ Healthy when homepage is reachable
-      test:
-        ['CMD-SHELL', 'curl -fsS http://127.0.0.1:8000/ >/dev/null || exit 1']
-      interval: 10s
-      timeout: 5s
-      retries: 20
+      dockerfile: Dockerfile
+    container_name: wordpress_app
     restart: unless-stopped
 
-  phpmyadmin:
-    image: phpmyadmin:latest # 🔎 For quick DB inspection; dev-only convenience
-    container_name: wp_pma
-    env_file: .env
+    # Wait for database to be healthy before starting
     depends_on:
       mysql:
         condition: service_healthy
-    ports:
-      - '8081:80' # ⇦ visit http://localhost:8081
+
+    # Environment variables for WordPress configuration
     environment:
-      PMA_HOST: ${DB_HOST}
-      PMA_PORT: ${DB_PORT}
-      UPLOAD_LIMIT: 256M
-    restart: unless-stopped
-# 🗂 Shared network (default) is fine for local dev.
-# 🗃 Volumes are bind-mounted to keep files editable and persistent.
+      # Database connection settings
+      WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+
+      # WordPress site configuration
+      WORDPRESS_URL: ${WORDPRESS_URL}
+      WORDPRESS_TITLE: ${WORDPRESS_TITLE}
+      WORDPRESS_ADMIN_USER: ${WORDPRESS_ADMIN_USER}
+      WORDPRESS_ADMIN_PASSWORD: ${WORDPRESS_ADMIN_PASSWORD}
+      WORDPRESS_ADMIN_EMAIL: ${WORDPRESS_ADMIN_EMAIL}
+
+      # WordPress security keys
+      WORDPRESS_AUTH_KEY: ${WORDPRESS_AUTH_KEY}
+      WORDPRESS_SECURE_AUTH_KEY: ${WORDPRESS_SECURE_AUTH_KEY}
+      WORDPRESS_LOGGED_IN_KEY: ${WORDPRESS_LOGGED_IN_KEY}
+      WORDPRESS_NONCE_KEY: ${WORDPRESS_NONCE_KEY}
+      WORDPRESS_AUTH_SALT: ${WORDPRESS_AUTH_SALT}
+      WORDPRESS_SECURE_AUTH_SALT: ${WORDPRESS_SECURE_AUTH_SALT}
+      WORDPRESS_LOGGED_IN_SALT: ${WORDPRESS_LOGGED_IN_SALT}
+      WORDPRESS_NONCE_SALT: ${WORDPRESS_NONCE_SALT}
+
+      # Development settings
+      WP_DEBUG: ${WP_DEBUG:-true}
+      WP_DEBUG_LOG: ${WP_DEBUG_LOG:-true}
+      WP_DEBUG_DISPLAY: ${WP_DEBUG_DISPLAY:-false}
+
+    # Persistent volumes for WordPress files
+    volumes:
+      - ./wordpress:/var/www/html
+      - wordpress_logs:/var/log/php
+
+    # Network configuration
+    networks:
+      - wordpress_network
+
+    # Port mapping for WordPress access
+    ports:
+      - '${WORDPRESS_PORT:-8080}:8000'
+
+    # Health check to ensure WordPress is responding
+    healthcheck:
+      test: ['CMD-SHELL', 'php-fpm8.2 -t']
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+      interval: 30s
+
+# ========================================
+# NETWORKS CONFIGURATION
+# ========================================
+networks:
+  wordpress_network:
+    driver: bridge
+    name: wordpress_dev_network
+
+# ========================================
+# VOLUMES CONFIGURATION
+# ========================================
+volumes:
+  # MySQL logs volume
+  mysql_logs:
+    driver: local
+    name: wordpress_mysql_logs
+
+  # WordPress logs volume
+  wordpress_logs:
+    driver: local
+    name: wordpress_app_logs
