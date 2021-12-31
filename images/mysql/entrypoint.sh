@@ -1,59 +1,109 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+# MySQL Entrypoint Script
+# Initializes MySQL database with security settings and user setup
 
-# ─────────────────────────────────────────────────────────
-#  MariaDB first-run bootstrap: users, DB, and permissions
-#  All values come from environment variables (.env)
-# ─────────────────────────────────────────────────────────
+set -eo pipefail
 
-: "${DB_ROOT_PASSWORD:?Missing DB_ROOT_PASSWORD}"
-: "${DB_NAME:?Missing DB_NAME}"
-: "${DB_USER:?Missing DB_USER}"
-: "${DB_PASSWORD:?Missing DB_PASSWORD}"
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-mkdir -p /run/mysqld
-chown -R mysql:mysql /run/mysqld /var/lib/mysql
+# Logging function
+log() {
+    echo -e "${GREEN}[MySQL Init]${NC} $1"
+}
 
-# Initialize datadir if empty (MariaDB 10.11+)
+error() {
+    echo -e "${RED}[MySQL Error]${NC} $1" >&2
+}
+
+warn() {
+    echo -e "${YELLOW}[MySQL Warning]${NC} $1"
+}
+
+# Check if data directory is empty (first run)
 if [ ! -d "/var/lib/mysql/mysql" ]; then
-  echo "✨ Initializing MariaDB data directory…"
-  mariadb-install-db \
-    --user=mysql \
-    --datadir=/var/lib/mysql \
-    --skip-test-db \
-    --auth-root-authentication-method=normal
+    log "Initializing MySQL data directory..."
+    
+    # Initialize MySQL data directory
+    mysql_install_db --user=mysql --datadir=/var/lib/mysql
+    
+    log "Starting temporary MySQL server for setup..."
+    
+    # Start MySQL in background for initial setup
+    mysqld --user=mysql --datadir=/var/lib/mysql --skip-networking --socket=/tmp/mysql_init.sock &
+    MYSQL_PID=$!
+    
+    # Wait for MySQL to be ready
+    for i in {1..30}; do
+        if mysqladmin --socket=/tmp/mysql_init.sock ping >/dev/null 2>&1; then
+            break
+        fi
+        log "Waiting for MySQL to start... ($i/30)"
+        sleep 1
+    done
+    
+    if ! mysqladmin --socket=/tmp/mysql_init.sock ping >/dev/null 2>&1; then
+        error "MySQL failed to start within 30 seconds"
+        exit 1
+    fi
+    
+    log "MySQL is ready for configuration"
+    
+    # Set root password if provided
+    if [ -n "$MYSQL_ROOT_PASSWORD" ]; then
+        log "Setting root password..."
+        mysql --socket=/tmp/mysql_init.sock -u root <<-EOSQL
+            ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD';
+            CREATE USER 'root'@'%' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD';
+            GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+            DELETE FROM mysql.user WHERE User='';
+            DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1', '%');
+            DROP DATABASE IF EXISTS test;
+            DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+            FLUSH PRIVILEGES;
+EOSQL
+    else
+        warn "No root password set (MYSQL_ROOT_PASSWORD not provided)"
+    fi
+    
+    # Create database if specified
+    if [ -n "$MYSQL_DATABASE" ]; then
+        log "Creating database: $MYSQL_DATABASE"
+        mysql --socket=/tmp/mysql_init.sock -u root -p"$MYSQL_ROOT_PASSWORD" <<-EOSQL
+            CREATE DATABASE IF NOT EXISTS \`$MYSQL_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EOSQL
+    fi
+    
+    # Create user if specified
+    if [ -n "$MYSQL_USER" ] && [ -n "$MYSQL_PASSWORD" ]; then
+        log "Creating user: $MYSQL_USER"
+        mysql --socket=/tmp/mysql_init.sock -u root -p"$MYSQL_ROOT_PASSWORD" <<-EOSQL
+            CREATE USER IF NOT EXISTS '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD';
+EOSQL
+        
+        # Grant privileges to database if both user and database are specified
+        if [ -n "$MYSQL_DATABASE" ]; then
+            log "Granting privileges to $MYSQL_USER on $MYSQL_DATABASE"
+            mysql --socket=/tmp/mysql_init.sock -u root -p"$MYSQL_ROOT_PASSWORD" <<-EOSQL
+                GRANT ALL PRIVILEGES ON \`$MYSQL_DATABASE\`.* TO '$MYSQL_USER'@'%';
+                FLUSH PRIVILEGES;
+EOSQL
+        fi
+    fi
+    
+    # Stop the temporary server
+    log "Stopping temporary MySQL server..."
+    kill $MYSQL_PID
+    wait $MYSQL_PID
+    
+    log "MySQL initialization completed successfully"
+else
+    log "MySQL data directory already exists, skipping initialization"
 fi
 
-# Start temporary server (no networking)
-echo "🚀 Starting MariaDB (bootstrap)…"
-mariadbd --skip-networking --socket=/run/mysqld/mysqld.sock --user=mysql &
-BOOT_PID=$!
-
-# Wait for socket
-for i in {1..60}; do
-  if mariadb-admin --socket=/run/mysqld/mysqld.sock ping &>/dev/null; then
-    break
-  fi
-  sleep 1
-done
-
-# Secure and create DB/user
-echo "🔐 Securing root account and creating database/user…"
-mariadb --protocol=socket --socket=/run/mysqld/mysqld.sock <<-SQL
-  ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_ROOT_PASSWORD}';
-  DELETE FROM mysql.user WHERE User='' OR (User='root' AND Host NOT IN ('localhost'));
-  FLUSH PRIVILEGES;
-
-  CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci;
-  CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
-  GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
-  FLUSH PRIVILEGES;
-SQL
-
-# Stop bootstrap server
-mariadb-admin --socket=/run/mysqld/mysqld.sock -uroot -p"${DB_ROOT_PASSWORD}" shutdown
-
-echo "✅ MariaDB initialized."
-
-# Exec real server (takes over PID 1 via tini)
-exec "$@"
+# Start MySQL in foreground
+log "Starting MySQL server..."
+exec "$@" --bind-address=0.0.0.0
